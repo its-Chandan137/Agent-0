@@ -2,8 +2,10 @@ function AppTopbar({
   title,
   status,
   showCaret = false,
+  currentUser,
   isMobileSidebarOpen,
   onToggleMobileSidebar,
+  onLogout,
 }) {
   return (
     <header className="chat-topbar app-topbar">
@@ -26,7 +28,21 @@ function AppTopbar({
         </div>
       </div>
 
-      <div className="chat-topbar-status">{status}</div>
+      <div className="app-topbar-actions">
+        <div className="chat-topbar-status">{status}</div>
+        {currentUser ? (
+          <div className="app-topbar-user">
+            <span className="app-topbar-user-name">{currentUser.name}</span>
+            <button
+              type="button"
+              className="ghost-button topbar-logout-button"
+              onClick={onLogout}
+            >
+              Logout
+            </button>
+          </div>
+        ) : null}
+      </div>
     </header>
   );
 }
