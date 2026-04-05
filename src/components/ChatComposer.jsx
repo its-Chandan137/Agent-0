@@ -15,6 +15,16 @@ function ChatComposer({ disabled, onSend }) {
     textarea.style.height = `${Math.min(textarea.scrollHeight, 220)}px`;
   }, [draft]);
 
+  useEffect(() => {
+    if (disabled || !textareaRef.current) {
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      textareaRef.current?.focus();
+    });
+  }, [disabled]);
+
   async function sendDraft() {
     if (!draft.trim() || disabled) {
       return;
