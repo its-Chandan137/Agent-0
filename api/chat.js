@@ -17,6 +17,8 @@ function createGroqClient() {
   });
 }
 
+// Review this 
+
 function parseChatObjectId(chatId) {
   if (!chatId) {
     return null;
