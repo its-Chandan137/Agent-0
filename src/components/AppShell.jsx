@@ -8,6 +8,9 @@ function AppShell({
   activeChatId,
   onSelectChat,
   onStartNewChat,
+  onToggleChatStar,
+  onRenameChat,
+  onDeleteChat,
   isBootstrapping,
   children,
 }) {
@@ -39,6 +42,9 @@ function AppShell({
         activeChatId={activeChatId}
         onSelectChat={handleSelectChat}
         onStartNewChat={handleStartNewChatClick}
+        onToggleChatStar={onToggleChatStar}
+        onRenameChat={onRenameChat}
+        onDeleteChat={onDeleteChat}
         isBootstrapping={isBootstrapping}
       />
       <main className="app-main">{children}</main>

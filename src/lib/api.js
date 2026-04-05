@@ -55,6 +55,22 @@ export function fetchChats() {
   return request('/api/chats');
 }
 
+export function updateChat(chatId, updates) {
+  return request('/api/chats', {
+    method: 'PATCH',
+    body: JSON.stringify({
+      id: chatId,
+      ...updates,
+    }),
+  });
+}
+
+export function deleteChat(chatId) {
+  return request(`/api/chats?id=${encodeURIComponent(chatId)}`, {
+    method: 'DELETE',
+  });
+}
+
 export async function streamChatReply(payload, { onEvent }) {
   const response = await fetch('/api/chat', {
     method: 'POST',

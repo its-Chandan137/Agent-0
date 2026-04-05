@@ -6,12 +6,14 @@ import ProfilePage from './pages/ProfilePage';
 import WishlistPage from './pages/WishlistPage';
 import {
   createWishlistItem,
+  deleteChat,
   deleteWishlistItem,
   fetchChats,
   fetchProfile,
   fetchWishlist,
   saveProfile,
   streamChatReply,
+  updateChat,
 } from './lib/api';
 import {
   formatChatCollection,
@@ -144,6 +146,64 @@ function App() {
 
   function handleStartNewChat() {
     setActiveChatId(null);
+  }
+
+  async function handleToggleChatStar(chatId) {
+    const targetChat = chats.find((chat) => chat._id === chatId);
+
+    if (!targetChat) {
+      return { success: false, message: 'Chat not found.' };
+    }
+
+    try {
+      const response = await updateChat(chatId, { starred: !targetChat.starred });
+      const [updatedChat] = formatChatCollection([response.chat]);
+
+      setChats((currentChats) =>
+        currentChats
+          .map((chat) => (chat._id === chatId ? updatedChat : chat))
+          .sort((left, right) => {
+            if (Boolean(right.starred) !== Boolean(left.starred)) {
+              return Number(Boolean(right.starred)) - Number(Boolean(left.starred));
+            }
+
+            return new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime();
+          }),
+      );
+
+      return { success: true };
+    } catch (error) {
+      return { success: false, message: error.message };
+    }
+  }
+
+  async function handleRenameChat(chatId, title) {
+    try {
+      const response = await updateChat(chatId, { title });
+      const [updatedChat] = formatChatCollection([response.chat]);
+
+      setChats((currentChats) =>
+        currentChats.map((chat) => (chat._id === chatId ? updatedChat : chat)),
+      );
+
+      return { success: true };
+    } catch (error) {
+      return { success: false, message: error.message };
+    }
+  }
+
+  async function handleDeleteChat(chatId) {
+    try {
+      await deleteChat(chatId);
+      await refreshChats(chatId === activeChatId ? null : activeChatId);
+
+      setChats((currentChats) => currentChats.filter((chat) => chat._id !== chatId));
+      setActiveChatId((currentActiveId) => (currentActiveId === chatId ? null : currentActiveId));
+
+      return { success: true };
+    } catch (error) {
+      return { success: false, message: error.message };
+    }
   }
 
   async function handleSendMessage(content) {
@@ -285,6 +345,9 @@ function App() {
       activeChatId={activeChatId}
       onSelectChat={setActiveChatId}
       onStartNewChat={handleStartNewChat}
+      onToggleChatStar={handleToggleChatStar}
+      onRenameChat={handleRenameChat}
+      onDeleteChat={handleDeleteChat}
       isBootstrapping={isBootstrapping}
     >
       <Routes>
