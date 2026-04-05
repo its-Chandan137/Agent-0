@@ -78,6 +78,8 @@ function Sidebar({
   onRenameChat,
   onDeleteChat,
   isBootstrapping,
+  isMobileOpen,
+  onCloseMobileSidebar,
 }) {
   const { isScrolling: isHistoryScrolling, handleScroll: handleHistoryScroll } = useScrollActivity();
   const [menuChatId, setMenuChatId] = useState(null);
@@ -187,7 +189,7 @@ function Sidebar({
 
   return (
     <>
-      <aside className="sidebar">
+      <aside className={`sidebar ${isMobileOpen ? 'is-mobile-open' : ''}`}>
         <div className="sidebar-top">
           <div className="sidebar-brand">
             <div className="sidebar-brand-mark">AI</div>
@@ -196,6 +198,16 @@ function Sidebar({
               <span className="sidebar-brand-subtitle">Personal money copilot</span>
             </div>
           </div>
+
+          <button
+            type="button"
+            className="sidebar-close-button"
+            aria-label="Close sidebar"
+            onClick={onCloseMobileSidebar}
+          >
+            <span />
+            <span />
+          </button>
         </div>
 
         <button type="button" className="new-chat-button" onClick={onStartNewChat}>
@@ -209,6 +221,7 @@ function Sidebar({
               to={item.to}
               end={item.to === '/'}
               className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+              onClick={onCloseMobileSidebar}
             >
               <span className="nav-link-icon">
                 <SidebarIcon icon={item.icon} />
@@ -249,7 +262,10 @@ function Sidebar({
                     <button
                       type="button"
                       className="history-item"
-                      onClick={() => onSelectChat(chat._id)}
+                      onClick={() => {
+                        onSelectChat(chat._id);
+                        onCloseMobileSidebar();
+                      }}
                     >
                       <span className="history-item-main">
                         {chat.starred ? (
