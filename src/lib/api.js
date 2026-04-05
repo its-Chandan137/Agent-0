@@ -23,6 +23,77 @@ async function request(url, options = {}) {
   return response.json();
 }
 
+function createAdminAuthHeader(password) {
+  return `Basic ${window.btoa(`admin:${password}`)}`;
+}
+
+export function requestAccess(payload) {
+  return request('/api/auth/request-access', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function sendOtp(payload) {
+  return request('/api/auth/send-otp', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function verifyOtp(payload) {
+  return request('/api/auth/verify-otp', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function logoutUser() {
+  return request('/api/auth/logout', {
+    method: 'POST',
+  });
+}
+
+export function fetchMe() {
+  return request('/api/auth/me');
+}
+
+export function fetchAdminUsers(password) {
+  return request('/api/admin/users', {
+    headers: {
+      Authorization: createAdminAuthHeader(password),
+    },
+  });
+}
+
+export function updateAdminUser(password, payload) {
+  return request('/api/admin/users', {
+    method: 'POST',
+    headers: {
+      Authorization: createAdminAuthHeader(password),
+    },
+    body: JSON.stringify(payload),
+  });
+}
+
+export function fetchAdminSessions(password, userId) {
+  return request(`/api/admin/sessions?userId=${encodeURIComponent(userId)}`, {
+    headers: {
+      Authorization: createAdminAuthHeader(password),
+    },
+  });
+}
+
+export function revokeAdminSession(password, sessionId) {
+  return request('/api/admin/sessions', {
+    method: 'DELETE',
+    headers: {
+      Authorization: createAdminAuthHeader(password),
+    },
+    body: JSON.stringify({ sessionId }),
+  });
+}
+
 export function fetchProfile() {
   return request('/api/profile');
 }

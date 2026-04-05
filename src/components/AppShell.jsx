@@ -5,6 +5,7 @@ import Sidebar from './Sidebar';
 function AppShell({
   theme,
   setTheme,
+  currentUser,
   chats,
   activeChat,
   activeChatId,
@@ -17,6 +18,7 @@ function AppShell({
   isMobileSidebarOpen,
   onToggleMobileSidebar,
   onCloseMobileSidebar,
+  onLogout,
   children,
 }) {
   const navigate = useNavigate();
@@ -70,8 +72,10 @@ function AppShell({
           title={topbarMeta.title}
           status={topbarMeta.status}
           showCaret={topbarMeta.showCaret}
+          currentUser={currentUser}
           isMobileSidebarOpen={isMobileSidebarOpen}
           onToggleMobileSidebar={onToggleMobileSidebar}
+          onLogout={onLogout}
         />
         <div className="app-content">{children}</div>
       </main>

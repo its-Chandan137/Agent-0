@@ -1,10 +1,10 @@
 import Groq from 'groq-sdk';
 import { ObjectId } from 'mongodb';
+import { getUserIdFromRequest, isAuthError } from '../lib/auth.js';
 import { getCollections, serializeDocument } from '../lib/mongodb.js';
 import { buildSystemPrompt, makeChatTitle } from '../lib/budgetContext.js';
 import { methodNotAllowed, parseJsonBody, writeNdjson } from '../lib/http.js';
 
-const DEMO_USER_ID = 'demo-user';
 const MODEL = 'llama-3.3-70b-versatile';
 
 function createGroqClient() {
@@ -37,6 +37,7 @@ export default async function handler(req, res) {
   }
 
   try {
+    const userId = await getUserIdFromRequest(req);
     const { chatId, message } = await parseJsonBody(req);
 
     if (!message || !String(message).trim()) {
@@ -54,9 +55,9 @@ export default async function handler(req, res) {
     const chatObjectId = parseChatObjectId(chatId);
     const { chats, profiles, wishlist } = await getCollections();
     const [profile, wishlistItems, existingChat] = await Promise.all([
-      profiles.findOne({ userId: DEMO_USER_ID }),
-      wishlist.find({ userId: DEMO_USER_ID }).sort({ dateAdded: -1 }).toArray(),
-      chatObjectId ? chats.findOne({ _id: chatObjectId, userId: DEMO_USER_ID }) : null,
+      profiles.findOne({ userId }),
+      wishlist.find({ userId }).sort({ dateAdded: -1 }).toArray(),
+      chatObjectId ? chats.findOne({ _id: chatObjectId, userId }) : null,
     ]);
 
     const userMessage = {
@@ -70,7 +71,7 @@ export default async function handler(req, res) {
 
     if (existingChat) {
       await chats.updateOne(
-        { _id: chatObjectId, userId: DEMO_USER_ID },
+        { _id: chatObjectId, userId },
         {
           $push: { messages: userMessage },
           $set: { updatedAt: now },
@@ -78,7 +79,7 @@ export default async function handler(req, res) {
       );
     } else {
       const insertResult = await chats.insertOne({
-        userId: DEMO_USER_ID,
+        userId,
         title: chatTitle,
         messages: [userMessage],
         createdAt: now,
@@ -104,7 +105,7 @@ export default async function handler(req, res) {
     );
 
     // Reload the thread after saving the user's message so the model sees full context.
-    const freshChat = await chats.findOne({ _id: resolvedChatObjectId, userId: DEMO_USER_ID });
+    const freshChat = await chats.findOne({ _id: resolvedChatObjectId, userId });
     const systemPrompt = buildSystemPrompt({
       profile,
       wishlistItems,
@@ -144,21 +145,23 @@ export default async function handler(req, res) {
     };
 
     await chats.updateOne(
-      { _id: resolvedChatObjectId, userId: DEMO_USER_ID },
+      { _id: resolvedChatObjectId, userId },
       {
         $push: { messages: assistantMessage },
         $set: { updatedAt: new Date() },
       },
     );
 
-    const savedChat = await chats.findOne({ _id: resolvedChatObjectId, userId: DEMO_USER_ID });
+    const savedChat = await chats.findOne({ _id: resolvedChatObjectId, userId });
     res.write(`${JSON.stringify({ type: 'done', chat: serializeDocument(savedChat) })}\n`);
     res.end();
   } catch (error) {
     console.error('Chat streaming failed', error);
 
+    const statusCode = isAuthError(error) ? error.statusCode || 401 : 500;
+
     if (!res.headersSent) {
-      res.statusCode = 500;
+      res.statusCode = statusCode;
       res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8');
     }
 

@@ -1,16 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { Navigate, Route, Routes } from 'react-router-dom';
 import AppShell from './components/AppShell';
+import AdminPage from './pages/AdminPage';
 import ChatPage from './pages/ChatPage';
+import LoginPage from './pages/LoginPage';
 import ProfilePage from './pages/ProfilePage';
+import RequestAccessPage from './pages/RequestAccessPage';
 import WishlistPage from './pages/WishlistPage';
 import {
   createWishlistItem,
   deleteChat,
   deleteWishlistItem,
+  fetchMe,
   fetchChats,
   fetchProfile,
   fetchWishlist,
+  logoutUser,
   saveProfile,
   streamChatReply,
   updateChat,
@@ -30,13 +35,14 @@ const defaultProfile = {
 };
 
 function App() {
-  const location = useLocation();
   const [theme, setTheme] = useState(() => localStorage.getItem('budget-theme') || 'dark');
+  const [currentUser, setCurrentUser] = useState(null);
   const [profile, setProfile] = useState(defaultProfile);
   const [wishlist, setWishlist] = useState([]);
   const [chats, setChats] = useState([]);
   const [activeChatId, setActiveChatId] = useState(null);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [isBootstrapping, setIsBootstrapping] = useState(true);
   const [isStreaming, setIsStreaming] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
@@ -48,12 +54,45 @@ function App() {
   }, [theme]);
 
   useEffect(() => {
-    loadInitialData();
+    let isCancelled = false;
+
+    async function hydrateSession() {
+      try {
+        const response = await fetchMe();
+
+        if (!isCancelled) {
+          setCurrentUser(response.user);
+        }
+      } catch (error) {
+        if (!isCancelled) {
+          setCurrentUser(null);
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsCheckingAuth(false);
+        }
+      }
+    }
+
+    hydrateSession();
+
+    return () => {
+      isCancelled = true;
+    };
   }, []);
 
   useEffect(() => {
-    setIsMobileSidebarOpen(false);
-  }, [location.pathname]);
+    if (!currentUser) {
+      setProfile(defaultProfile);
+      setWishlist([]);
+      setChats([]);
+      setActiveChatId(null);
+      setIsBootstrapping(false);
+      return;
+    }
+
+    loadInitialData();
+  }, [currentUser?.userId]);
 
   async function loadInitialData() {
     try {
@@ -203,9 +242,6 @@ function App() {
       await deleteChat(chatId);
       await refreshChats(chatId === activeChatId ? null : activeChatId);
 
-      setChats((currentChats) => currentChats.filter((chat) => chat._id !== chatId));
-      setActiveChatId((currentActiveId) => (currentActiveId === chatId ? null : currentActiveId));
-
       return { success: true };
     } catch (error) {
       return { success: false, message: error.message };
@@ -343,59 +379,118 @@ function App() {
     }
   }
 
+  function handleAuthenticated(user) {
+    setCurrentUser(user);
+    setIsCheckingAuth(false);
+  }
+
+  async function handleUserLogout() {
+    try {
+      await logoutUser();
+    } catch (error) {
+      console.error('Logout failed', error);
+    } finally {
+      setCurrentUser(null);
+      setProfile(defaultProfile);
+      setWishlist([]);
+      setChats([]);
+      setActiveChatId(null);
+      setIsMobileSidebarOpen(false);
+    }
+  }
+
+  if (isCheckingAuth) {
+    return (
+      <section className="page auth-page auth-loading-page">
+        <div className="auth-layout">
+          <div className="auth-card panel auth-loading-card">
+            <div className="auth-spinner" aria-hidden="true" />
+            <p className="form-status">Checking your session...</p>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   return (
-    <AppShell
-      theme={theme}
-      setTheme={setTheme}
-      chats={chats}
-      activeChat={activeChat}
-      activeChatId={activeChatId}
-      onSelectChat={setActiveChatId}
-      onStartNewChat={handleStartNewChat}
-      onToggleChatStar={handleToggleChatStar}
-      onRenameChat={handleRenameChat}
-      onDeleteChat={handleDeleteChat}
-      isBootstrapping={isBootstrapping}
-      isMobileSidebarOpen={isMobileSidebarOpen}
-      onToggleMobileSidebar={() => setIsMobileSidebarOpen((isOpen) => !isOpen)}
-      onCloseMobileSidebar={() => setIsMobileSidebarOpen(false)}
-    >
-      <Routes>
-        <Route
-          path="/"
-          element={
-            <ChatPage
+    <Routes>
+      <Route
+        path="/login"
+        element={
+          currentUser ? <Navigate to="/" replace /> : <LoginPage onAuthenticated={handleAuthenticated} />
+        }
+      />
+      <Route
+        path="/request-access"
+        element={currentUser ? <Navigate to="/" replace /> : <RequestAccessPage />}
+      />
+      <Route path="/admin" element={<AdminPage />} />
+      <Route
+        path="*"
+        element={
+          currentUser ? (
+            <AppShell
+              theme={theme}
+              setTheme={setTheme}
+              currentUser={currentUser}
+              chats={chats}
               activeChat={activeChat}
-              isStreaming={isStreaming}
-              onSendMessage={handleSendMessage}
-            />
-          }
-        />
-        <Route
-          path="/profile"
-          element={
-            <ProfilePage
-              profile={profile}
-              isSaving={savingProfile}
-              onSave={handleSaveProfile}
-            />
-          }
-        />
-        <Route
-          path="/wishlist"
-          element={
-            <WishlistPage
-              wishlist={wishlist}
-              profile={profile}
-              isCreating={creatingWishlistItem}
-              onCreate={handleCreateWishlistItem}
-              onDelete={handleDeleteWishlistItem}
-            />
-          }
-        />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </AppShell>
+              activeChatId={activeChatId}
+              onSelectChat={setActiveChatId}
+              onStartNewChat={handleStartNewChat}
+              onToggleChatStar={handleToggleChatStar}
+              onRenameChat={handleRenameChat}
+              onDeleteChat={handleDeleteChat}
+              isBootstrapping={isBootstrapping}
+              isMobileSidebarOpen={isMobileSidebarOpen}
+              onToggleMobileSidebar={() => setIsMobileSidebarOpen((isOpen) => !isOpen)}
+              onCloseMobileSidebar={() => setIsMobileSidebarOpen(false)}
+              onLogout={handleUserLogout}
+            >
+              <Routes>
+                <Route
+                  path="/"
+                  element={
+                    <ChatPage
+                      activeChat={activeChat}
+                      isStreaming={isStreaming}
+                      onSendMessage={handleSendMessage}
+                    />
+                  }
+                />
+                <Route
+                  path="/profile"
+                  element={
+                    <ProfilePage
+                      user={currentUser}
+                      profile={profile}
+                      isSaving={savingProfile}
+                      onSave={handleSaveProfile}
+                    />
+                  }
+                />
+                <Route
+                  path="/wishlist"
+                  element={
+                    <WishlistPage
+                      user={currentUser}
+                      wishlist={wishlist}
+                      profile={profile}
+                      isCreating={creatingWishlistItem}
+                      onCreate={handleCreateWishlistItem}
+                      onDelete={handleDeleteWishlistItem}
+                    />
+                  }
+                />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </AppShell>
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
+      />
+    </Routes>
   );
 }
 
