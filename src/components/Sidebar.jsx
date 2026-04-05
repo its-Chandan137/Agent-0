@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import { formatRelativeTime } from '../lib/format';
+import { useScrollActivity } from '../lib/useScrollActivity';
 
 const navItems = [
   { to: '/', label: 'Chats', icon: 'chat' },
@@ -41,6 +42,8 @@ function Sidebar({
   onStartNewChat,
   isBootstrapping,
 }) {
+  const { isScrolling: isHistoryScrolling, handleScroll: handleHistoryScroll } = useScrollActivity();
+
   return (
     <aside className="sidebar">
       <div className="sidebar-top">
@@ -79,25 +82,37 @@ function Sidebar({
           <span>{chats.length}</span>
         </div>
 
-        {isBootstrapping ? (
-          <div className="history-empty">Loading chats...</div>
-        ) : chats.length === 0 ? (
-          <div className="history-empty">Your saved chats will appear here.</div>
-        ) : (
-          <div className="history-list">
-            {chats.map((chat) => (
-              <button
-                key={chat._id}
-                type="button"
-                className={`history-item ${chat._id === activeChatId ? 'active' : ''}`}
-                onClick={() => onSelectChat(chat._id)}
-              >
-                <span className="history-item-title">{chat.title || 'Untitled chat'}</span>
-                <span className="history-item-meta">{formatRelativeTime(chat.updatedAt)}</span>
-              </button>
-            ))}
-          </div>
-        )}
+        <div
+          onScroll={handleHistoryScroll}
+          className={`history-scroll-area ${isHistoryScrolling ? 'is-scrolling' : ''}`}
+        >
+          {isBootstrapping ? (
+            <div className="history-skeleton-list" aria-hidden="true">
+              {Array.from({ length: 5 }).map((_, index) => (
+                <div key={index} className="history-skeleton-item">
+                  <span className="history-skeleton-line history-skeleton-line-title" />
+                  <span className="history-skeleton-line history-skeleton-line-meta" />
+                </div>
+              ))}
+            </div>
+          ) : chats.length === 0 ? (
+            <div className="history-empty">Your saved chats will appear here.</div>
+          ) : (
+            <div className="history-list">
+              {chats.map((chat) => (
+                <button
+                  key={chat._id}
+                  type="button"
+                  className={`history-item ${chat._id === activeChatId ? 'active' : ''}`}
+                  onClick={() => onSelectChat(chat._id)}
+                >
+                  <span className="history-item-title">{chat.title || 'Untitled chat'}</span>
+                  <span className="history-item-meta">{formatRelativeTime(chat.updatedAt)}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="sidebar-footer">

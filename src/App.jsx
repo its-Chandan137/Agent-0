@@ -47,7 +47,7 @@ function App() {
     loadInitialData();
   }, []);
 
-  async function loadInitialData(preferredChatId = null) {
+  async function loadInitialData() {
     try {
       setIsBootstrapping(true);
       const [profileData, wishlistData, chatData] = await Promise.all([
@@ -65,17 +65,33 @@ function App() {
       });
       setWishlist(wishlistData.items || []);
       setChats(formattedChats);
-
-      const nextActiveId =
-        preferredChatId && formattedChats.some((chat) => chat._id === preferredChatId)
-          ? preferredChatId
-          : formattedChats[0]?._id || null;
-
-      setActiveChatId(nextActiveId);
+      setActiveChatId((currentActiveId) => currentActiveId || formattedChats[0]?._id || null);
     } catch (error) {
       console.error('Failed to bootstrap app', error);
     } finally {
       setIsBootstrapping(false);
+    }
+  }
+
+  async function refreshChats(preferredChatId = null) {
+    try {
+      const chatData = await fetchChats();
+      const formattedChats = formatChatCollection(chatData.chats || []);
+      setChats(formattedChats);
+
+      setActiveChatId((currentActiveId) => {
+        if (preferredChatId && formattedChats.some((chat) => chat._id === preferredChatId)) {
+          return preferredChatId;
+        }
+
+        if (currentActiveId && formattedChats.some((chat) => chat._id === currentActiveId)) {
+          return currentActiveId;
+        }
+
+        return formattedChats[0]?._id || null;
+      });
+    } catch (error) {
+      console.error('Failed to refresh chats', error);
     }
   }
 
@@ -211,11 +227,29 @@ function App() {
                 }),
               );
             }
+
+            if (event.type === 'done' && event.chat) {
+              const [serverChat] = formatChatCollection([event.chat]);
+
+              setChats((currentChats) => {
+                const existingIndex = currentChats.findIndex(
+                  (chat) => chat._id === serverChat._id || chat._id === tempChatId,
+                );
+
+                if (existingIndex === -1) {
+                  return [serverChat, ...currentChats];
+                }
+
+                return currentChats.map((chat, index) => (index === existingIndex ? serverChat : chat));
+              });
+            }
           },
         },
       );
 
-      await loadInitialData(persistedChatId || tempChatId);
+      if (isNewChat) {
+        await refreshChats(persistedChatId || tempChatId);
+      }
     } catch (error) {
       setChats((currentChats) =>
         currentChats.map((chat) => {
@@ -259,7 +293,6 @@ function App() {
           element={
             <ChatPage
               activeChat={activeChat}
-              isBootstrapping={isBootstrapping}
               isStreaming={isStreaming}
               onSendMessage={handleSendMessage}
             />
