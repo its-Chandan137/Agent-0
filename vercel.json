@@ -1,9 +1,9 @@
 {
-  "devCommand": null,
   "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/profile", "destination": "/" },
     { "source": "/wishlist", "destination": "/" },
-    { "source": "/api/(.*)", "destination": "/api/$1" }
+    { "source": "/(.*)", "destination": "/" }
   ],
   "functions": {
     "api/*.js": {
