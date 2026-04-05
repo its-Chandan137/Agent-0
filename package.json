@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "concurrently -k -n web,api -c green,cyan \"npm:dev:web\" \"npm:dev:api\"",
     "dev:web": "vite",
-    "dev:api": "vercel dev --port 3000",
+    "dev:api": "vercel dev --listen 3000 --yes",
     "build": "vite build",
     "preview": "vite preview"
   },

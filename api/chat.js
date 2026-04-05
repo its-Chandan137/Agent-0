@@ -5,7 +5,7 @@ import { buildSystemPrompt, makeChatTitle } from '../lib/budgetContext.js';
 import { methodNotAllowed, parseJsonBody, writeNdjson } from '../lib/http.js';
 
 const DEMO_USER_ID = 'demo-user';
-const MODEL = 'llama-3.1-70b-versatile';
+const MODEL = 'llama-3.3-70b-versatile';
 
 function createGroqClient() {
   if (!process.env.GROQ_API_KEY) {
