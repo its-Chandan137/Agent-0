@@ -241,11 +241,6 @@ a {
   scrollbar-color: transparent transparent;
 }
 
-.chat-thread-shell {
-  scrollbar-width: none;
-  scrollbar-color: transparent transparent;
-}
-
 .history-scroll-area.is-scrolling,
 .chat-thread-shell.is-scrolling {
   scrollbar-width: thin;
@@ -414,6 +409,8 @@ a {
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 12px 0 180px;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
 }
 
 .chat-thread-content {

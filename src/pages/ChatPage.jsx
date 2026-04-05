@@ -124,7 +124,7 @@ function ChatPage({ activeChat, isStreaming, onSendMessage }) {
             handleThreadScroll(event);
             measureMarkers();
           }}
-          className={`chat-thread-shell ${true ? 'is-scrolling' : ''}`}
+          className={`chat-thread-shell ${isThreadScrolling ? 'is-scrolling' : ''}`}
         >
           <div className={`chat-thread-content ${hasMessages ? 'with-messages' : 'empty'}`}>
             {hasMessages ? (
