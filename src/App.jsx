@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import AppShell from './components/AppShell';
 import ChatPage from './pages/ChatPage';
 import ProfilePage from './pages/ProfilePage';
@@ -30,11 +30,13 @@ const defaultProfile = {
 };
 
 function App() {
+  const location = useLocation();
   const [theme, setTheme] = useState(() => localStorage.getItem('budget-theme') || 'dark');
   const [profile, setProfile] = useState(defaultProfile);
   const [wishlist, setWishlist] = useState([]);
   const [chats, setChats] = useState([]);
   const [activeChatId, setActiveChatId] = useState(null);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isBootstrapping, setIsBootstrapping] = useState(true);
   const [isStreaming, setIsStreaming] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
@@ -48,6 +50,10 @@ function App() {
   useEffect(() => {
     loadInitialData();
   }, []);
+
+  useEffect(() => {
+    setIsMobileSidebarOpen(false);
+  }, [location.pathname]);
 
   async function loadInitialData() {
     try {
@@ -342,6 +348,7 @@ function App() {
       theme={theme}
       setTheme={setTheme}
       chats={chats}
+      activeChat={activeChat}
       activeChatId={activeChatId}
       onSelectChat={setActiveChatId}
       onStartNewChat={handleStartNewChat}
@@ -349,6 +356,9 @@ function App() {
       onRenameChat={handleRenameChat}
       onDeleteChat={handleDeleteChat}
       isBootstrapping={isBootstrapping}
+      isMobileSidebarOpen={isMobileSidebarOpen}
+      onToggleMobileSidebar={() => setIsMobileSidebarOpen((isOpen) => !isOpen)}
+      onCloseMobileSidebar={() => setIsMobileSidebarOpen(false)}
     >
       <Routes>
         <Route

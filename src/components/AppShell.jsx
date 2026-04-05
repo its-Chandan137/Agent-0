@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import AppTopbar from './AppTopbar';
 import Sidebar from './Sidebar';
 
 function AppShell({
   theme,
   setTheme,
   chats,
+  activeChat,
   activeChatId,
   onSelectChat,
   onStartNewChat,
@@ -13,19 +14,19 @@ function AppShell({
   onRenameChat,
   onDeleteChat,
   isBootstrapping,
+  isMobileSidebarOpen,
+  onToggleMobileSidebar,
+  onCloseMobileSidebar,
   children,
 }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
-  useEffect(() => {
-    setIsMobileSidebarOpen(false);
-  }, [location.pathname]);
+  const topbarMeta = getTopbarMeta(location.pathname, activeChat);
 
   function handleSelectChat(chatId) {
     onSelectChat(chatId);
-    setIsMobileSidebarOpen(false);
+    onCloseMobileSidebar();
 
     if (location.pathname !== '/') {
       navigate('/');
@@ -34,7 +35,7 @@ function AppShell({
 
   function handleStartNewChatClick() {
     onStartNewChat();
-    setIsMobileSidebarOpen(false);
+    onCloseMobileSidebar();
 
     if (location.pathname !== '/') {
       navigate('/');
@@ -45,21 +46,9 @@ function AppShell({
     <div className="app-shell">
       <button
         type="button"
-        className={`mobile-sidebar-toggle ${isMobileSidebarOpen ? 'is-hidden' : ''}`}
-        aria-label={isMobileSidebarOpen ? 'Close sidebar' : 'Open sidebar'}
-        aria-expanded={isMobileSidebarOpen}
-        onClick={() => setIsMobileSidebarOpen((isOpen) => !isOpen)}
-      >
-        <span />
-        <span />
-        <span />
-      </button>
-
-      <button
-        type="button"
         className={`sidebar-overlay ${isMobileSidebarOpen ? 'visible' : ''}`}
         aria-label="Close sidebar overlay"
-        onClick={() => setIsMobileSidebarOpen(false)}
+        onClick={onCloseMobileSidebar}
       />
 
       <Sidebar
@@ -74,11 +63,44 @@ function AppShell({
         onDeleteChat={onDeleteChat}
         isBootstrapping={isBootstrapping}
         isMobileOpen={isMobileSidebarOpen}
-        onCloseMobileSidebar={() => setIsMobileSidebarOpen(false)}
+        onCloseMobileSidebar={onCloseMobileSidebar}
       />
-      <main className="app-main">{children}</main>
+      <main className="app-main">
+        <AppTopbar
+          title={topbarMeta.title}
+          status={topbarMeta.status}
+          showCaret={topbarMeta.showCaret}
+          isMobileSidebarOpen={isMobileSidebarOpen}
+          onToggleMobileSidebar={onToggleMobileSidebar}
+        />
+        <div className="app-content">{children}</div>
+      </main>
     </div>
   );
+}
+
+function getTopbarMeta(pathname, activeChat) {
+  if (pathname === '/profile') {
+    return {
+      title: 'Budget profile',
+      status: 'Income, expenses, and savings goals',
+      showCaret: false,
+    };
+  }
+
+  if (pathname === '/wishlist') {
+    return {
+      title: 'Wishlist',
+      status: 'Planned purchases and priorities',
+      showCaret: false,
+    };
+  }
+
+  return {
+    title: 'Mantra',
+    status: activeChat?.messages?.length ? activeChat.title || 'Budget chat' : 'Budget Assistant',
+    showCaret: true,
+  };
 }
 
 export default AppShell;

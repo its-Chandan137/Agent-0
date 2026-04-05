@@ -107,16 +107,6 @@ function ChatPage({ activeChat, isStreaming, onSendMessage }) {
 
   return (
     <section className="page chat-page">
-      <div className="chat-topbar">
-        <div className="chat-topbar-title">
-          <span>Mantra</span>
-          <span className="chat-topbar-caret">v</span>
-        </div>
-        <div className="chat-topbar-status">
-          {hasMessages ? activeChat?.title || 'Budget chat' : 'Budget Assistant'}
-        </div>
-      </div>
-
       <div className="chat-body">
         <div
           ref={threadRef}
