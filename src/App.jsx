@@ -1,0 +1,296 @@
+import { useEffect, useMemo, useState } from 'react';
+import { Navigate, Route, Routes } from 'react-router-dom';
+import AppShell from './components/AppShell';
+import ChatPage from './pages/ChatPage';
+import ProfilePage from './pages/ProfilePage';
+import WishlistPage from './pages/WishlistPage';
+import {
+  createWishlistItem,
+  deleteWishlistItem,
+  fetchChats,
+  fetchProfile,
+  fetchWishlist,
+  saveProfile,
+  streamChatReply,
+} from './lib/api';
+import {
+  formatChatCollection,
+  makeChatTitle,
+  makeClientId,
+  mergeStreamChunk,
+  reconcileChatIdentity,
+} from './lib/chat';
+
+const defaultProfile = {
+  income: '',
+  fixedExpenses: '',
+  savingsGoal: '',
+};
+
+function App() {
+  const [theme, setTheme] = useState(() => localStorage.getItem('budget-theme') || 'dark');
+  const [profile, setProfile] = useState(defaultProfile);
+  const [wishlist, setWishlist] = useState([]);
+  const [chats, setChats] = useState([]);
+  const [activeChatId, setActiveChatId] = useState(null);
+  const [isBootstrapping, setIsBootstrapping] = useState(true);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [creatingWishlistItem, setCreatingWishlistItem] = useState(false);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem('budget-theme', theme);
+  }, [theme]);
+
+  useEffect(() => {
+    loadInitialData();
+  }, []);
+
+  async function loadInitialData(preferredChatId = null) {
+    try {
+      setIsBootstrapping(true);
+      const [profileData, wishlistData, chatData] = await Promise.all([
+        fetchProfile(),
+        fetchWishlist(),
+        fetchChats(),
+      ]);
+
+      const formattedChats = formatChatCollection(chatData.chats || []);
+
+      setProfile({
+        income: profileData.profile?.income ?? '',
+        fixedExpenses: profileData.profile?.fixedExpenses ?? '',
+        savingsGoal: profileData.profile?.savingsGoal ?? '',
+      });
+      setWishlist(wishlistData.items || []);
+      setChats(formattedChats);
+
+      const nextActiveId =
+        preferredChatId && formattedChats.some((chat) => chat._id === preferredChatId)
+          ? preferredChatId
+          : formattedChats[0]?._id || null;
+
+      setActiveChatId(nextActiveId);
+    } catch (error) {
+      console.error('Failed to bootstrap app', error);
+    } finally {
+      setIsBootstrapping(false);
+    }
+  }
+
+  const activeChat = useMemo(
+    () => chats.find((chat) => chat._id === activeChatId) || null,
+    [activeChatId, chats],
+  );
+
+  async function handleSaveProfile(formValues) {
+    setSavingProfile(true);
+
+    try {
+      const response = await saveProfile(formValues);
+      setProfile({
+        income: response.profile?.income ?? '',
+        fixedExpenses: response.profile?.fixedExpenses ?? '',
+        savingsGoal: response.profile?.savingsGoal ?? '',
+      });
+      return { success: true };
+    } catch (error) {
+      return { success: false, message: error.message };
+    } finally {
+      setSavingProfile(false);
+    }
+  }
+
+  async function handleCreateWishlistItem(formValues) {
+    setCreatingWishlistItem(true);
+
+    try {
+      const response = await createWishlistItem(formValues);
+      setWishlist(response.items || []);
+      return { success: true };
+    } catch (error) {
+      return { success: false, message: error.message };
+    } finally {
+      setCreatingWishlistItem(false);
+    }
+  }
+
+  async function handleDeleteWishlistItem(itemId) {
+    try {
+      const response = await deleteWishlistItem(itemId);
+      setWishlist(response.items || []);
+      return { success: true };
+    } catch (error) {
+      return { success: false, message: error.message };
+    }
+  }
+
+  function handleStartNewChat() {
+    setActiveChatId(null);
+  }
+
+  async function handleSendMessage(content) {
+    if (!content.trim() || isStreaming) {
+      return;
+    }
+
+    const userMessage = {
+      role: 'user',
+      content: content.trim(),
+      timestamp: new Date().toISOString(),
+      clientId: makeClientId('user'),
+    };
+    const assistantClientId = makeClientId('assistant');
+    const assistantPlaceholder = {
+      role: 'assistant',
+      content: '',
+      timestamp: new Date().toISOString(),
+      isStreaming: true,
+      clientId: assistantClientId,
+    };
+    const tempChatId = activeChat?._id || `draft-${Date.now()}`;
+    const isNewChat = !activeChat;
+    const optimisticChat = isNewChat
+      ? {
+          _id: tempChatId,
+          title: makeChatTitle(content),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          messages: [userMessage, assistantPlaceholder],
+        }
+      : {
+          ...activeChat,
+          updatedAt: new Date().toISOString(),
+          messages: [...activeChat.messages, userMessage, assistantPlaceholder],
+        };
+
+    setIsStreaming(true);
+    setActiveChatId(tempChatId);
+    setChats((currentChats) => {
+      if (isNewChat) {
+        return [optimisticChat, ...currentChats];
+      }
+
+      return currentChats.map((chat) => (chat._id === activeChat._id ? optimisticChat : chat));
+    });
+
+    let persistedChatId = activeChat?._id || null;
+
+    try {
+      await streamChatReply(
+        { chatId: activeChat?._id || null, message: content.trim() },
+        {
+          onEvent: (event) => {
+            if (event.type === 'meta') {
+              persistedChatId = event.chatId;
+              setActiveChatId(event.chatId);
+              setChats((currentChats) =>
+                currentChats.map((chat) =>
+                  reconcileChatIdentity(chat, tempChatId, {
+                    _id: event.chatId,
+                    title: event.title || chat.title,
+                    createdAt: event.createdAt || chat.createdAt,
+                    updatedAt: event.updatedAt || chat.updatedAt,
+                  }),
+                ),
+              );
+            }
+
+            if (event.type === 'chunk') {
+              setChats((currentChats) =>
+                currentChats.map((chat) => {
+                  if (chat._id !== (persistedChatId || tempChatId)) {
+                    return chat;
+                  }
+
+                  return {
+                    ...chat,
+                    messages: mergeStreamChunk(chat.messages, assistantClientId, event.content || ''),
+                  };
+                }),
+              );
+            }
+          },
+        },
+      );
+
+      await loadInitialData(persistedChatId || tempChatId);
+    } catch (error) {
+      setChats((currentChats) =>
+        currentChats.map((chat) => {
+          if (chat._id !== (persistedChatId || tempChatId)) {
+            return chat;
+          }
+
+          return {
+            ...chat,
+            messages: chat.messages.map((message) =>
+              message.clientId === assistantClientId
+                ? {
+                    ...message,
+                    isStreaming: false,
+                    content:
+                      'I hit a snag while streaming that answer. Please try again in a moment.',
+                  }
+                : message,
+            ),
+          };
+        }),
+      );
+    } finally {
+      setIsStreaming(false);
+    }
+  }
+
+  return (
+    <AppShell
+      theme={theme}
+      setTheme={setTheme}
+      chats={chats}
+      activeChatId={activeChatId}
+      onSelectChat={setActiveChatId}
+      onStartNewChat={handleStartNewChat}
+      isBootstrapping={isBootstrapping}
+    >
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <ChatPage
+              activeChat={activeChat}
+              isBootstrapping={isBootstrapping}
+              isStreaming={isStreaming}
+              onSendMessage={handleSendMessage}
+            />
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProfilePage
+              profile={profile}
+              isSaving={savingProfile}
+              onSave={handleSaveProfile}
+            />
+          }
+        />
+        <Route
+          path="/wishlist"
+          element={
+            <WishlistPage
+              wishlist={wishlist}
+              profile={profile}
+              isCreating={creatingWishlistItem}
+              onCreate={handleCreateWishlistItem}
+              onDelete={handleDeleteWishlistItem}
+            />
+          }
+        />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </AppShell>
+  );
+}
+
+export default App;
