@@ -1,4 +1,3 @@
-import twilio from 'twilio';
 import { getCollections } from '../../lib/mongodb.js';
 import { json, methodNotAllowed, parseJsonBody } from '../../lib/http.js';
 import {
@@ -6,22 +5,9 @@ import {
   OTP_MAX_AGE_MS,
   generateOtp,
   isAuthError,
-  normalizePhone,
+  normalizeEmail,
 } from '../../lib/auth.js';
-
-let cachedTwilioClient;
-
-function getTwilioClient() {
-  if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN || !process.env.TWILIO_PHONE_NUMBER) {
-    throw new Error('Missing Twilio environment variables.');
-  }
-
-  if (!cachedTwilioClient) {
-    cachedTwilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-  }
-
-  return cachedTwilioClient;
-}
+import { sendOtpEmail } from '../../lib/email.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -30,9 +16,9 @@ export default async function handler(req, res) {
 
   try {
     const payload = await parseJsonBody(req);
-    const phone = normalizePhone(payload.phone);
+    const email = normalizeEmail(payload.email);
     const { users, otps } = await getCollections();
-    const user = await users.findOne({ phone });
+    const user = await users.findOne({ email });
 
     if (!user) {
       throw new AuthError('Request access first.', 403);
@@ -50,20 +36,16 @@ export default async function handler(req, res) {
     const now = new Date();
     const expiresAt = new Date(now.getTime() + OTP_MAX_AGE_MS);
 
-    await otps.updateMany({ phone, used: false }, { $set: { used: true } });
+    await otps.updateMany({ email, used: false }, { $set: { used: true } });
     await otps.insertOne({
-      phone,
+      email,
       otp,
       expiresAt,
       used: false,
       createdAt: now,
     });
 
-    await getTwilioClient().messages.create({
-      body: `Your Mantra OTP is: ${otp}. Valid for 10 minutes.`,
-      from: process.env.TWILIO_PHONE_NUMBER,
-      to: phone,
-    });
+    await sendOtpEmail({ email, otp });
 
     return json(res, 200, { success: true });
   } catch (error) {
@@ -72,6 +54,14 @@ export default async function handler(req, res) {
     }
 
     console.error('Send OTP failed', error);
+
+    if (error?.code === 'EAUTH' || /authentication failed/i.test(String(error?.response || error?.message || ''))) {
+      return json(res, 500, {
+        error:
+          'Email sender authentication failed. Check BREVO_SMTP_USER and BREVO_SMTP_PASS, then restart the dev server.',
+      });
+    }
+
     return json(res, 500, { error: 'Could not send OTP.' });
   }
 }

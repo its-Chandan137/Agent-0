@@ -69,6 +69,7 @@ function AppShell({
       />
       <main className="app-main">
         <AppTopbar
+          theme={theme}
           title={topbarMeta.title}
           status={topbarMeta.status}
           showCaret={topbarMeta.showCaret}

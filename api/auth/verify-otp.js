@@ -7,7 +7,7 @@ import {
   getRequestDevice,
   getRequestIp,
   isAuthError,
-  normalizePhone,
+  normalizeEmail,
   pruneExpiredSessions,
   setSessionCookie,
   signSessionToken,
@@ -30,7 +30,7 @@ export default async function handler(req, res) {
 
   try {
     const payload = await parseJsonBody(req);
-    const phone = normalizePhone(payload.phone);
+    const email = normalizeEmail(payload.email);
     const otp = normalizeOtp(payload.otp);
     const { otps, users, sessions } = await getCollections();
     const now = new Date();
@@ -38,7 +38,7 @@ export default async function handler(req, res) {
     await pruneExpiredSessions();
 
     const otpEntry = await otps.findOne({
-      phone,
+      email,
       otp,
       used: false,
       expiresAt: { $gt: now },
@@ -50,7 +50,7 @@ export default async function handler(req, res) {
 
     await otps.updateOne({ _id: otpEntry._id }, { $set: { used: true } });
 
-    const user = await users.findOne({ phone });
+    const user = await users.findOne({ email });
 
     if (!user || user.status !== 'active') {
       clearSessionCookie(res);
@@ -68,7 +68,7 @@ export default async function handler(req, res) {
       );
     }
 
-    const token = signSessionToken({ userId: user._id, phone: user.phone });
+    const token = signSessionToken({ userId: user._id, email: user.email });
     await sessions.insertOne({
       userId: user._id,
       token,
@@ -83,7 +83,7 @@ export default async function handler(req, res) {
       success: true,
       user: {
         name: user.name,
-        phone: user.phone,
+        email: user.email,
         userId: serializeDocument(user._id),
       },
     });

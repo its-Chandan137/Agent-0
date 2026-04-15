@@ -216,7 +216,7 @@ function AdminPage() {
                 <thead>
                   <tr>
                     <th>Name</th>
-                    <th>Phone</th>
+                    <th>Email</th>
                     <th>Status</th>
                     <th>Devices</th>
                     <th>Requested</th>
@@ -227,7 +227,7 @@ function AdminPage() {
                   {users.map((user) => (
                     <tr key={user._id}>
                       <td>{user.name}</td>
-                      <td>{user.phone}</td>
+                      <td>{user.email}</td>
                       <td>{user.status}</td>
                       <td>{user.sessionCount || 0}</td>
                       <td>{formatAdminDate(user.requestedAt)}</td>
@@ -296,7 +296,7 @@ function AdminPage() {
               <div>
                 <h3>{selectedUser ? `${selectedUser.name}'s sessions` : 'Sessions'}</h3>
                 <p className="form-status">
-                  {selectedUser ? selectedUser.phone : 'Select a user to inspect active devices.'}
+                  {selectedUser ? selectedUser.email : 'Select a user to inspect active devices.'}
                 </p>
               </div>
               <button

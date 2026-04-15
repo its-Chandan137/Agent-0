@@ -27,7 +27,7 @@ export default async function handler(req, res) {
     return json(res, 200, {
       user: {
         name: auth.user.name,
-        phone: auth.user.phone,
+        email: auth.user.email,
         userId: auth.user._id.toString(),
       },
     });
