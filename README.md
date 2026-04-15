@@ -7,16 +7,16 @@ A full-stack budget assistant built with:
 - Vercel serverless functions
 - Groq SDK
 - MongoDB Atlas
-- Invite-only phone auth with Twilio OTP
+- Invite-only email auth with Brevo SMTP OTP via Nodemailer
 
-The frontend never talks to Groq, MongoDB, Twilio, or admin APIs directly outside `/api/*`.
+The frontend never talks to Groq, MongoDB, SMTP, or admin APIs directly outside `/api/*`.
 
 ## Features
 
 - Streaming budget chat with MongoDB-backed history
 - Budget profile and wishlist persistence
 - Invite-only access requests
-- SMS OTP login for approved users
+- Email OTP login for approved users
 - Device-limited sessions with admin revocation
 - Admin approval and blocking workflow
 
@@ -26,7 +26,7 @@ The frontend never talks to Groq, MongoDB, Twilio, or admin APIs directly outsid
 - Backend: Vercel serverless functions
 - Database: MongoDB Atlas
 - LLM: Groq
-- Auth OTP: Twilio SMS
+- Auth OTP: Nodemailer + Brevo SMTP
 
 ## Project Structure
 
@@ -81,15 +81,17 @@ The app uses a database named `budget_assistant`.
 2. Create an API key.
 3. Copy it for your `.env`.
 
-## 4. Create a Twilio SMS Sender
+## 4. Create a Brevo SMTP Sender
 
-1. Create a [Twilio](https://www.twilio.com/) account.
-2. Use a trial account or phone-enabled sender.
+1. Create a [Brevo](https://www.brevo.com/) account.
+2. Open the SMTP settings for transactional email.
 3. Copy:
-   - `Account SID`
-   - `Auth Token`
-   - `Twilio phone number`
-4. Make sure the sender can message the target numbers you want to test with.
+   - `BREVO_SMTP_HOST`
+   - `BREVO_SMTP_PORT`
+   - `BREVO_SMTP_USER`
+   - `BREVO_SMTP_PASS`
+   - `BREVO_FROM_EMAIL`
+4. Verify the sender email if Brevo asks for it.
 
 ## 5. Create Your `.env` File
 
@@ -98,9 +100,11 @@ Create `.env` in the project root:
 ```env
 GROQ_API_KEY=your_groq_api_key
 MONGODB_URI=your_mongodb_atlas_connection_string
-TWILIO_ACCOUNT_SID=your_twilio_account_sid
-TWILIO_AUTH_TOKEN=your_twilio_auth_token
-TWILIO_PHONE_NUMBER=your_twilio_phone_number
+BREVO_SMTP_HOST=smtp-relay.brevo.com
+BREVO_SMTP_PORT=587
+BREVO_SMTP_USER=your_brevo_smtp_user
+BREVO_SMTP_PASS=your_brevo_smtp_password
+BREVO_FROM_EMAIL=your_verified_sender_email
 ADMIN_PASSWORD=your_admin_password
 JWT_SECRET=your_random_jwt_secret
 ```
@@ -125,12 +129,12 @@ Vite proxies `/api/*` to the local Vercel runtime, so auth and chat work togethe
 ### User flow
 
 1. User opens `/request-access`
-2. User submits name and phone number in E.164 format
+2. User submits name and email address
 3. Admin reviews pending users in `/admin`
 4. Admin approves the user
 5. User opens `/login`
 6. User requests an OTP
-7. Twilio sends a 6-digit code by SMS
+7. Brevo sends a 6-digit code by email
 8. User verifies the OTP
 9. A session cookie is created for 7 days
 
@@ -146,7 +150,7 @@ Vite proxies `/api/*` to the local Vercel runtime, so auth and chat work togethe
 Open `/admin`.
 
 - Enter the admin password from `ADMIN_PASSWORD`
-- `Users` tab shows all users and device counts
+- `Users` tab shows all users, emails, and device counts
 - Approve or block pending users
 - `Sessions` tab shows device sessions per user
 - Revoke one session or revoke all sessions for a selected user
@@ -173,9 +177,11 @@ The app uses these collections:
 3. Add these environment variables in the project settings:
    - `GROQ_API_KEY`
    - `MONGODB_URI`
-   - `TWILIO_ACCOUNT_SID`
-   - `TWILIO_AUTH_TOKEN`
-   - `TWILIO_PHONE_NUMBER`
+   - `BREVO_SMTP_HOST`
+   - `BREVO_SMTP_PORT`
+   - `BREVO_SMTP_USER`
+   - `BREVO_SMTP_PASS`
+   - `BREVO_FROM_EMAIL`
    - `ADMIN_PASSWORD`
    - `JWT_SECRET`
 4. Deploy.
@@ -194,9 +200,11 @@ Add the same environment variables when prompted.
 
 - `GROQ_API_KEY`
 - `MONGODB_URI`
-- `TWILIO_ACCOUNT_SID`
-- `TWILIO_AUTH_TOKEN`
-- `TWILIO_PHONE_NUMBER`
+- `BREVO_SMTP_HOST`
+- `BREVO_SMTP_PORT`
+- `BREVO_SMTP_USER`
+- `BREVO_SMTP_PASS`
+- `BREVO_FROM_EMAIL`
 - `ADMIN_PASSWORD`
 - `JWT_SECRET`
 
@@ -209,4 +217,4 @@ Add the same environment variables when prompted.
   - MongoDB Atlas free tier
   - Vercel hobby tier
   - Groq developer access
-  - Twilio trial or equivalent SMS testing setup
+  - Brevo free SMTP sending

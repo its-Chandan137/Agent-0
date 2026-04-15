@@ -1,18 +1,14 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { fetchMe, sendOtp, verifyOtp } from '../lib/api';
-import { buildE164Phone, countryCodes } from '../lib/phone';
 
 function LoginPage({ onAuthenticated }) {
   const navigate = useNavigate();
-  const [countryCode, setCountryCode] = useState('+91');
-  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
   const [step, setStep] = useState(1);
   const [status, setStatus] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const fullPhone = buildE164Phone(countryCode, phone);
 
   async function handleSendOtp(event) {
     event.preventDefault();
@@ -20,9 +16,9 @@ function LoginPage({ onAuthenticated }) {
 
     try {
       setIsSubmitting(true);
-      await sendOtp({ phone: fullPhone });
+      await sendOtp({ email });
       setStep(2);
-      setStatus(`OTP sent to ${fullPhone}`);
+      setStatus(`OTP sent to ${email.trim().toLowerCase()}`);
     } catch (error) {
       setStatus(error.message || 'Could not send OTP.');
     } finally {
@@ -36,7 +32,7 @@ function LoginPage({ onAuthenticated }) {
 
     try {
       setIsSubmitting(true);
-      await verifyOtp({ phone: fullPhone, otp });
+      await verifyOtp({ email, otp });
       const response = await fetchMe();
       onAuthenticated?.(response.user);
       navigate('/');
@@ -61,38 +57,27 @@ function LoginPage({ onAuthenticated }) {
             <p className="page-eyebrow">Secure login</p>
             <h1>Log in to Mantra</h1>
             <p className="auth-copy">
-              Approved members can sign in with a one-time SMS code sent to their phone.
+              Approved members can sign in with a one-time code sent to their email inbox.
             </p>
 
             <div className="auth-divider">
               <span />
-              <strong>{step === 1 ? 'Phone verification' : 'Enter OTP'}</strong>
+              <strong>{step === 1 ? 'Email verification' : 'Enter OTP'}</strong>
               <span />
             </div>
 
             {step === 1 ? (
               <form className="auth-form" onSubmit={handleSendOtp}>
                 <label>
-                  Phone number
-                  <div className="phone-input-row">
-                    <select
-                      value={countryCode}
-                      onChange={(event) => setCountryCode(event.target.value)}
-                    >
-                      {countryCodes.map((code) => (
-                        <option key={code} value={code}>
-                          {code}
-                        </option>
-                      ))}
-                    </select>
-                    <input
-                      type="tel"
-                      value={phone}
-                      onChange={(event) => setPhone(event.target.value)}
-                      placeholder="9876543210"
-                      required
-                    />
-                  </div>
+                  Email address
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    placeholder="you@example.com"
+                    autoComplete="email"
+                    required
+                  />
                 </label>
 
                 <button type="submit" className="primary-button" disabled={isSubmitting}>
@@ -106,6 +91,7 @@ function LoginPage({ onAuthenticated }) {
                   <input
                     type="text"
                     inputMode="numeric"
+                    autoComplete="one-time-code"
                     maxLength="6"
                     value={otp}
                     onChange={(event) => setOtp(event.target.value.replace(/\D/g, ''))}
@@ -127,7 +113,7 @@ function LoginPage({ onAuthenticated }) {
                     setStatus('');
                   }}
                 >
-                  Change number
+                  Change email
                 </button>
               </form>
             )}

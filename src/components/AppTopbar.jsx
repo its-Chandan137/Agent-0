@@ -1,4 +1,8 @@
+import threeLineForLight from '../../public/icons/threeLineForLight.svg'
+import threeLineForDark from '../../public/icons/threeLineForDark.svg'
+
 function AppTopbar({
+  theme,
   title,
   status,
   showCaret = false,
@@ -17,9 +21,12 @@ function AppTopbar({
           aria-expanded={isMobileSidebarOpen}
           onClick={onToggleMobileSidebar}
         >
-          <span />
-          <span />
-          <span />
+          {
+            theme === 'dark' ? 
+            <img src={threeLineForDark} alt="threeLine" className='threeLineForLight' />
+            :
+            <img src={threeLineForLight} alt="threeLine" className='threeLineForLight' />
+          }
         </button>
 
         <div className="chat-topbar-title">

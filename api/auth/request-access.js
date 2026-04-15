@@ -1,6 +1,6 @@
 import { getCollections } from '../../lib/mongodb.js';
 import { json, methodNotAllowed, parseJsonBody } from '../../lib/http.js';
-import { AuthError, isAuthError, normalizePhone } from '../../lib/auth.js';
+import { AuthError, isAuthError, normalizeEmail } from '../../lib/auth.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -10,14 +10,14 @@ export default async function handler(req, res) {
   try {
     const payload = await parseJsonBody(req);
     const name = String(payload.name || '').trim();
-    const phone = normalizePhone(payload.phone);
+    const email = normalizeEmail(payload.email);
 
     if (!name) {
       throw new AuthError('Name is required.', 400);
     }
 
     const { users } = await getCollections();
-    const existingUser = await users.findOne({ phone });
+    const existingUser = await users.findOne({ email });
 
     if (existingUser?.status === 'active') {
       return json(res, 200, { success: true, message: 'Already approved, please login.' });
@@ -33,7 +33,7 @@ export default async function handler(req, res) {
 
     await users.insertOne({
       name,
-      phone,
+      email,
       status: 'pending',
       requestedAt: new Date(),
       approvedAt: null,

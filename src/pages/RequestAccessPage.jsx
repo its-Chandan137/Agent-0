@@ -1,12 +1,10 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { requestAccess } from '../lib/api';
-import { buildE164Phone, countryCodes } from '../lib/phone';
 
 function RequestAccessPage() {
   const [name, setName] = useState('');
-  const [countryCode, setCountryCode] = useState('+91');
-  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [status, setStatus] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -19,7 +17,7 @@ function RequestAccessPage() {
       setIsSubmitting(true);
       const response = await requestAccess({
         name,
-        phone: buildE164Phone(countryCode, phone),
+        email,
       });
 
       setIsSuccess(true);
@@ -46,8 +44,8 @@ function RequestAccessPage() {
             <p className="page-eyebrow">Invite only</p>
             <h1>Request access to Mantra</h1>
             <p className="auth-copy">
-              Share your name and phone number. Once an admin approves you, you can log in with a
-              one-time SMS code.
+              Share your name and email. Once an admin approves you, you can log in with a
+              one-time email code.
             </p>
 
             <div className="auth-divider">
@@ -78,26 +76,15 @@ function RequestAccessPage() {
                 </label>
 
                 <label>
-                  Phone number
-                  <div className="phone-input-row">
-                    <select
-                      value={countryCode}
-                      onChange={(event) => setCountryCode(event.target.value)}
-                    >
-                      {countryCodes.map((code) => (
-                        <option key={code} value={code}>
-                          {code}
-                        </option>
-                      ))}
-                    </select>
-                    <input
-                      type="tel"
-                      value={phone}
-                      onChange={(event) => setPhone(event.target.value)}
-                      placeholder="9876543210"
-                      required
-                    />
-                  </div>
+                  Email address
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    placeholder="you@example.com"
+                    autoComplete="email"
+                    required
+                  />
                 </label>
 
                 <button type="submit" className="primary-button" disabled={isSubmitting}>
